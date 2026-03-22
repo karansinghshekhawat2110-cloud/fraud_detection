@@ -1,27 +1,21 @@
 import streamlit as st
 import numpy as np
-import pandas as pd
-import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
+import pickle
 
-# Page config
-st.set_page_config(page_title="Fraud Detection System", 
+st.set_page_config(page_title="Fraud Detection System",
                    page_icon="🔍",
                    layout="centered")
 
-# Title
 st.title("🔍 Credit Card Fraud Detection")
-st.markdown("Enter transaction details below to check if it's fraudulent.")
+st.markdown("Enter transaction details to check if it's fraudulent.")
 
-# Load model
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model('model/fraud_model.h5')
-    return model
+    with open('model/lr_model.pkl', 'rb') as f:
+        return pickle.load(f)
 
 model = load_model()
 
-# Input fields
 st.subheader("Transaction Details")
 
 col1, col2 = st.columns(2)
@@ -40,39 +34,28 @@ with col2:
     v16 = st.number_input("V16", value=0.0, format="%.4f")
     v7 = st.number_input("V7", value=0.0, format="%.4f")
 
-# Predict button
 if st.button("🔍 Check Transaction"):
-    
-    # Create input array with 30 features
     input_data = np.zeros((1, 30))
-    
-    # Normalize amount and time
-    scaler = StandardScaler()
-    input_data[0, 28] = (amount - 88.29) / 250  # normalized amount
-    input_data[0, 29] = (time - 94813) / 47488   # normalized time
-    
-    # Fill top features
+    input_data[0, 28] = (amount - 88.29) / 250
+    input_data[0, 29] = (time - 94813) / 47488
     feature_map = {9: v10, 11: v12, 13: v14, 15: v16, 16: v17,
                    3: v4, 6: v7, 10: v11}
     for idx, val in feature_map.items():
         input_data[0, idx] = val
-    
-    # Predict
-    prediction = model.predict(input_data)[0][0]
-    
-    # Show result
+
+    prediction = model.predict(input_data)[0]
+    probability = model.predict_proba(input_data)[0][1]
+
     st.subheader("Result:")
-    if prediction > 0.5:
+    if prediction == 1:
         st.error(f"🚨 FRAUDULENT TRANSACTION DETECTED!")
-        st.error(f"Fraud Probability: {prediction*100:.2f}%")
+        st.error(f"Fraud Probability: {probability*100:.2f}%")
     else:
         st.success(f"✅ LEGITIMATE TRANSACTION")
-        st.success(f"Fraud Probability: {prediction*100:.2f}%")
-    
-    # Probability bar
-    st.subheader("Fraud Probability:")
-    st.progress(float(prediction))
+        st.success(f"Fraud Probability: {probability*100:.2f}%")
 
-# Footer
+    st.subheader("Fraud Probability:")
+    st.progress(float(probability))
+
 st.markdown("---")
-st.markdown("Built with TensorFlow + Streamlit | Credit Card Fraud Detection Project")
+st.markdown("Built with Scikit-learn + Streamlit | Credit Card Fraud Detection")
